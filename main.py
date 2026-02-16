@@ -14,18 +14,14 @@ docs = [
     "Banana smoothies taste great on summer mornings",
 ]
 
-wordToDoc = defaultdict(set)
+wordToDoc = defaultdict(lambda: defaultdict(int))
 
 
 def tokenize_and_index(docs: list):
     for doc_id, text in enumerate(docs):
         words = re.findall(r"\w+", text.lower())
         for word in words:
-            if word in wordToDoc:
-                (id, cnt) = wordToDoc[word]
-                wordToDoc[word] = {id, cnt + 1}
-            else:
-                wordToDoc[word].add((doc_id, 0))
+            wordToDoc[word][doc_id] += 1
 
 
 def search(query: str):
@@ -35,7 +31,10 @@ def search(query: str):
         return []
 
     first_word = query_words[0]
-    result_ids = wordToDoc.get(first_word, set()).copy()
+    if first_word in wordToDoc:
+        result_ids = set(wordToDoc.get(first_word))
+    else:
+        result_ids = set()
 
     current_op = "OR"
 
@@ -46,20 +45,29 @@ def search(query: str):
         if token in ("and", "or", "not"):
             current_op = token.upper()
         else:
-            next_docs = wordToDoc.get(token, set())
+            if token in wordToDoc:
+                docs_for_word = set(wordToDoc.get(token))
+            else:
+                docs_for_word = set()
 
-            if current_op == "AND":
-                result_ids &= next_docs
+            if result_ids is None:
+                result_ids = docs_for_word.copy()
+            elif current_op == "AND":
+                result_ids &= docs_for_word
             elif current_op == "OR":
-                result_ids |= next_docs
+                result_ids |= docs_for_word
             elif current_op == "NOT":
-                result_ids -= next_docs
+                result_ids -= docs_for_word
 
             current_op = "OR"
 
         i += 1
 
-    return [docs[id] for id in result_ids]
+    sorted_res = list()
+    print(result_ids)
+    for r in result_ids:
+        sorted_res.append(docs[r])
+    return sorted_res
 
 
 def main():
