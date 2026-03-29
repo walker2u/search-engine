@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+import math
 
 docs = [
     "The quick brown fox jumps over the lazy dog",
@@ -13,80 +14,68 @@ docs = [
     "Coding every day builds strong problem-solving habits",
     "Banana smoothies taste great on summer mornings",
 ]
+k1 = 1.5
+b = 0.75
 
-wordToDoc = defaultdict(lambda: defaultdict(int))
-
-
-def tokenize_and_index(docs: list):
-    for doc_id, text in enumerate(docs):
-        words = re.findall(r"\w+", text.lower())
-        for word in words:
-            wordToDoc[word][doc_id] += 1
+word_to_doc_id = defaultdict(lambda: defaultdict(int))
+doc_lens = {}
+avg_len = 0
 
 
-def search(query: str):
-    query_words = re.findall(r"\w+", query.lower())
+def tokenize(text):
+    """Splits text into words, lowercase, removes punctuation."""
+    return re.findall(r"\w+", text.lower())
 
-    if not query_words:
-        return []
 
-    first_word = query_words[0]
-    if first_word in wordToDoc:
-        result_ids = set(wordToDoc.get(first_word))
-    else:
-        result_ids = set()
+def inverted_indexing(words, doc_id: int):
+    for word in words:
+        word_to_doc_id[word][doc_id] += 1
 
-    current_op = "OR"
 
-    i = 1
-    while i < len(query_words):
-        token = query_words[i]
+def search_word(query: str):
+    words = tokenize(query)
+    cand_doc_ids = set()
+    for word in words:
+        cand_doc_ids.update(word_to_doc_id[word].keys())
+    related_docs = []
+    for doc_id in cand_doc_ids:
+        related_docs.append((score_doc(words, doc_id), doc_id))
+    related_docs.sort(key=lambda x: x[0], reverse=True)
+    return related_docs
 
-        if token in ("and", "or", "not"):
-            current_op = token.upper()
-        else:
-            if token in wordToDoc:
-                docs_for_word = set(wordToDoc.get(token))
-            else:
-                docs_for_word = set()
 
-            if result_ids is None:
-                result_ids = docs_for_word.copy()
-            elif current_op == "AND":
-                result_ids &= docs_for_word
-            elif current_op == "OR":
-                result_ids |= docs_for_word
-            elif current_op == "NOT":
-                result_ids -= docs_for_word
+def get_idf(word: str) -> float:
+    N = len(docs)
+    n = len(word_to_doc_id[word])
+    return math.log(1 + (N - n + 0.5) / (n + 0.5))
 
-            current_op = "OR"
 
-        i += 1
-
-    sorted_res = list()
-    print(result_ids)
-    for r in result_ids:
-        sorted_res.append(docs[r])
-    return sorted_res
+def score_doc(query_words: list, doc_id: int) -> float:
+    score = 0.0
+    for word in query_words:
+        freq = word_to_doc_id[word][doc_id]
+        if freq == 0:
+            continue
+        doc_len = doc_lens[doc_id]
+        numerator = freq * (k1 + 1)
+        denominator = freq + k1 * (1 - b + b * (doc_len / avg_len))
+        score += get_idf(word) * (numerator / denominator)
+    return score
 
 
 def main():
-    tokenize_and_index(docs)
+    global avg_len
+    total = 0
+    for doc_id, sentence in enumerate(docs):
+        words = tokenize(sentence)
+        doc_lens[doc_id] = len(words)
+        inverted_indexing(words, doc_id)
+        total += len(words)
+    avg_len = total / len(docs)
 
-    print("--- Search: 'the knowledge day' ---")
-    results = search("the knowledge day")
-    for r in results:
-        print(f"- {r}")
-
-    print("\n--- Search: 'the AND dog' ---")
-    results = search("the and dog")
-    for r in results:
-        print(f"- {r}")
-
-    print("\n--- Search: 'pie NOT apple' ---")
-    results = search("pie not apple")
-    for r in results:
-        print(f"- {r}")
+    results = search_word("the coding")
+    for score, doc_id in results:
+        print(f"Score: {score:.4f} | Doc: {docs[doc_id]}")
 
 
 if __name__ == "__main__":
