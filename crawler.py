@@ -47,5 +47,5 @@ if __name__ == "__main__":
     print("Initializing Db-")
     init_db()
     print("Starting Crawler-")
-    crawl("https://en.wikipedia.org/wiki/Search_engine", max_pages=5)
+    crawl("https://en.wikipedia.org/wiki/Search_engine", 20)
     print("Crawling Complete!")

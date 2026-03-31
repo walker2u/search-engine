@@ -39,14 +39,13 @@ def search(query: str):
         idf = get_idf(doc_freq)
 
         cursor.execute(
-            "SELECT doc_id,frequency FROM postings where term_id=?", (term_id,)
+            "SELECT post.doc_id,post.frequency,doc.doc_length FROM postings as post INNER JOIN documents as doc on post.doc_id = doc.id where term_id=?",
+            (term_id,),
         )
-        doc_id_to_freq = cursor.fetchall()
-        for doc_id, freq in doc_id_to_freq:
+        doc_id_freq_doc_len = cursor.fetchall()
+        for doc_id, freq, doc_len in doc_id_freq_doc_len:
             if freq == 0:
                 continue
-            cursor.execute("SELECT doc_length FROM documents WHERE id=?", (doc_id,))
-            doc_len = cursor.fetchone()[0]
             numerator = freq * (k1 + 1)
             denominator = freq + k1 * (1 - b + b * (doc_len / avg_docs_length))
             document_scores[doc_id] += idf * (numerator / denominator)
