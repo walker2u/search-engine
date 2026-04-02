@@ -26,7 +26,7 @@ def get_idf(doc_freq) -> float:
     return math.log(1 + (total_docs - doc_freq + 0.5) / (doc_freq + 0.5))
 
 
-def search(query: str):
+def bm25_search(query: str):
 
     words = tokenize(query)
     document_scores = defaultdict(float)
@@ -68,8 +68,21 @@ def vector_search(query: str):
     return sorted(document_scores.items(), key=lambda x: x[1], reverse=True)
 
 
+def hybrid_search(query: str, k: int = 60):
+    bm25_score = bm25_search(query)
+    vector_score = vector_search(query)
+
+    rrf_scores = defaultdict(float)
+
+    for rank, (doc_id, score) in enumerate(bm25_score, start=1):
+        rrf_scores[doc_id] = 1.0 / (k + rank)
+    for rank, (doc_id, score) in enumerate(vector_score, start=1):
+        rrf_scores[doc_id] += 1.0 / (k + rank)
+    return sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
+
+
 if __name__ == "__main__":
-    document_scores = vector_search("search engine")
+    document_scores = hybrid_search("search engine")
     for doc_id, score in document_scores:
         cursor.execute("SELECT url FROM documents WHERE id=?", (doc_id,))
         url = cursor.fetchone()[0]
