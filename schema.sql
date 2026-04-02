@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY,
     url TEXT UNIQUE,
     content TEXT,
-    doc_length INTEGER
+    doc_length INTEGER,
+    embedding BLOB
 );
 
 CREATE TABLE IF NOT EXISTS terms (

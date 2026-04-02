@@ -1,8 +1,11 @@
 import sqlite3
 from main import tokenize
 from collections import defaultdict
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 sql_file_name = "schema.sql"
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 def init_db():
@@ -25,11 +28,15 @@ def add_document(url: str, text: str):
     for word in words_list:
         word_counts[word] += 1
 
+    # converting text into vector then saving it
+    vector = model.encode(text)
+    vec_bytes = vector.tobytes()
+
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO documents (url,content,doc_length) VALUES(?,?,?)",
-        (url, text, len(words_list)),
+        "INSERT INTO documents (url,content,doc_length,embedding) VALUES(?,?,?,?)",
+        (url, text, len(words_list), vec_bytes),
     )
     doc_id = cursor.lastrowid
 
