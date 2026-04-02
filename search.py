@@ -2,10 +2,12 @@ import re
 from indexer import get_conn
 from collections import defaultdict
 import math
-
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 k1 = 1.5
 b = 0.75
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 conn = get_conn()
 cursor = conn.cursor()
@@ -52,8 +54,22 @@ def search(query: str):
     return sorted(document_scores.items(), key=lambda x: x[1], reverse=True)
 
 
+def vector_search(query: str):
+    query_vector = model.encode(query)
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id,url,embedding FROM documents")
+    docs = cursor.fetchall()
+    document_scores = defaultdict(float)
+    for id, url, embedding in docs:
+        vector_doc = np.frombuffer(embedding, dtype=np.float32)
+        score = np.dot(query_vector, vector_doc)
+        document_scores[id] = score
+    return sorted(document_scores.items(), key=lambda x: x[1], reverse=True)
+
+
 if __name__ == "__main__":
-    document_scores = search("search engine")
+    document_scores = vector_search("search engine")
     for doc_id, score in document_scores:
         cursor.execute("SELECT url FROM documents WHERE id=?", (doc_id,))
         url = cursor.fetchone()[0]
