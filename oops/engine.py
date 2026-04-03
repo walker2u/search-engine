@@ -12,7 +12,7 @@ class HybridSearchEngine:
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
         # DB
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
         self.cursor.execute("SELECT COUNT(id) from documents")
